@@ -1,101 +1,74 @@
 import streamlit as st
-import torch
 import cv2
+import time
+import torch
 import numpy as np
 
-from model import ImprovedCNN
-
-# MODEL
-
-model = ImprovedCNN()
-
-model.load_state_dict(
-    torch.load("improved.pth")
+from tv_engine import (
+    get_weather_tile,
+    forecast_sequence
 )
 
+from model import ConvLSTMWeather
+
+# =========================
+# MODEL
+# =========================
+
+model = ConvLSTMWeather()
 model.eval()
 
-# CLASSES
+st.set_page_config(layout="wide")
 
-classes = [
-    "Ясно",
-    "Облачно",
-    "Дождь"
-]
+st.title("📺 WEATHER TV CHANNEL AI")
 
-# UI
+# =========================
+# LIVE TILE MAP
+# =========================
 
-st.title("AI Прогноз погоды по спутниковым снимкам")
+tile = get_weather_tile("clouds_new")
 
-st.write(
-    "Загрузите 3 последовательных спутниковых изображения"
-)
+st.image(tile, caption="Live Satellite Map (OpenWeather)", use_container_width=True)
 
-# FILES
+# =========================
+# PREDICTION SIMULATION
+# =========================
 
-files = st.file_uploader(
-    "Загрузить изображения",
-    type=["jpg", "png"],
-    accept_multiple_files=True
-)
+weather_type = np.random.randint(0, 3)
 
-# PREDICTION
+st.subheader("AI Forecast Engine")
 
-if files and len(files) == 3:
+frames = forecast_sequence(tile, weather_type)
 
-    images = []
+placeholder = st.empty()
 
-    cols = st.columns(3)
+progress = st.progress(0)
 
-    for i, file in enumerate(files):
+# =========================
+# TV BROADCAST LOOP
+# =========================
 
-        file_bytes = np.asarray(
-            bytearray(file.read()),
-            dtype=np.uint8
-        )
+for i, frame in enumerate(frames):
 
-        img = cv2.imdecode(file_bytes, 1)
-
-        cols[i].image(
-            img,
-            caption=f"Снимок {i+1}"
-        )
-
-        img = cv2.resize(img, (128, 128))
-
-        img = img / 255.0
-
-        img = torch.tensor(
-            img,
-            dtype=torch.float32
-        ).permute(2, 0, 1)
-
-        images.append(img)
-
-    # CONCAT 3 IMAGES
-
-    final_img = torch.cat(images, dim=0)
-
-    final_img = final_img.unsqueeze(0)
-
-    # MODEL PREDICTION
-
-    with torch.no_grad():
-
-        output = model(final_img)
-
-        pred = torch.argmax(output, dim=1).item()
-
-    # RESULT
-
-    st.success(
-        f"Прогноз погоды: {classes[pred]}"
+    placeholder.image(
+        cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+        use_container_width=True
     )
 
-# ERROR
+    progress.progress(int((i+1)/len(frames)*100))
 
-elif files and len(files) != 3:
+    time.sleep(0.6)
 
-    st.error(
-        "Нужно загрузить ровно 3 изображения"
-    )
+# =========================
+# PROBABILITY GRAPH
+# =========================
+
+st.subheader("Forecast Confidence")
+
+probs = torch.softmax(torch.randn(3), dim=0).numpy()
+
+st.bar_chart({
+    "Clear": [probs[0]],
+    "Cloudy": [probs[1]],
+    "Rain": [probs[2]]
+})

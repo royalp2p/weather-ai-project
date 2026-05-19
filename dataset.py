@@ -54,7 +54,7 @@ class WeatherDataset(Dataset):
             images.append(img)
 
         # объединяем 3 картинки
-        image = torch.cat(images, dim=0)
+        image = torch.stack(images, dim=0)  # (T, C, H, W)
 
         label = torch.tensor(label)
 

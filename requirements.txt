@@ -6,3 +6,7 @@ opencv-python
 streamlit
 scikit-learn
 clearml
+pandas
+requests
+pillow
+scikit-learn
