@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+satellite_dataset_final/
+trash/
+.idea/
